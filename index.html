@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>BARSAM JUSTICE</title>
+<style>
+*{box-sizing:border-box}
+body{margin:0;background:#f1f4f9;color:#17243b;font-family:Tahoma,Arial,sans-serif}
+header{background:#102a4c;color:white;padding:24px 18px}
+header h1{font-size:24px;margin:0}
+header p{font-size:12px;color:#cbd8ea;margin-bottom:0}
+main{max-width:850px;margin:auto;padding:15px}
+.card{background:white;padding:18px;margin-bottom:15px;border:1px solid #e0e6ef;border-radius:15px}
+h2{font-size:17px;margin:0 0 16px}
+label.field{display:block;font-size:13px;margin-top:10px}
+input,select,button{font:inherit}
+input[type=text],input[type=date],select{width:100%;padding:12px;border:1px solid #ccd6e5;border-radius:9px;margin:7px 0 12px;background:white}
+button,.upload{display:inline-block;background:#174d86;color:white;border:0;padding:12px 15px;border-radius:9px;cursor:pointer;text-align:center}
+.secondary{background:#e8eef7;color:#183b63}
+.danger{background:#a52c37}
+.upload{display:block}
+input[type=file]{display:none}
+.hint{font-size:12px;color:#697990;line-height:1.9}
+.stats{display:flex;gap:10px;margin-bottom:15px}
+.stat{flex:1;background:#18385f;color:white;padding:15px;border-radius:12px}
+.stat strong{display:block;font-size:24px;margin-bottom:6px}
+.stat span{font-size:12px;color:#d8e5f7}
+.item{border:1px solid #e0e6ef;border-radius:10px;padding:12px;margin-top:10px;overflow-wrap:anywhere}
+.item strong{display:block;margin-bottom:8px}
+.actions{display:flex;gap:7px;flex-wrap:wrap;margin-top:10px}
+.actions button{font-size:12px;padding:9px 12px}
+.badge{display:inline-block;background:#e4f5e9;color:#17653b;padding:5px 9px;border-radius:20px;font-size:12px}
+.empty{color:#7b8798;font-size:13px}
+footer{text-align:center;color:#78859a;font-size:12px;padding:20px}
+</style>
+</head>
+<body>
+<header>
+<h1>⚖️ BARSAM JUSTICE</h1>
+<p>سامانه آزمایشی مدیریت پرونده‌ها و بایگانی اسناد</p>
+</header>
+<main>
+<div class="stats">
+<div class="stat"><strong id="caseCount">۰</strong><span>پرونده‌ها</span></div>
+<div class="stat"><strong id="fileCount">۰</strong><span>فایل‌های انتخاب‌شده</span></div>
+</div>
+<section class="card">
+<h2>📁 بایگانی و آپلود فایل</h2>
+<label class="upload" for="fileInput">＋ انتخاب فایل از گوشی</label>
+<input id="fileInput" type="file" multiple>
+<p class="hint">فایل‌ها از دستگاه انتخاب می‌شوند و تا وقتی این صفحه باز است در فهرست باقی می‌مانند. این نسخه فایل‌ها را به سرور ارسال نمی‌کند.</p>
+<p id="uploadStatus" class="hint" aria-live="polite"></p>
+<div id="files"><p class="empty">هنوز فایلی انتخاب نشده است.</p></div>
+</section>
+<section class="card">
+<h2>⚖️ ثبت پرونده آزمایشی</h2>
+<form id="caseForm">
+<label class="field" for="number">شماره پرونده</label>
+<input id="number" type="text" placeholder="TEST-1001" required>
+<label class="field" for="subject">عنوان پرونده</label>
+<input id="subject" type="text" placeholder="پرونده آزمایشی" required>
+<label class="field" for="status">وضعیت</label>
+<select id="status"><option>در حال بررسی</option><option>تکمیل‌شده</option><option>نیازمند پیگیری</option></select>
+<label class="field" for="date">تاریخ پیگیری</label>
+<input id="date" type="date">
+<button type="submit">＋ ثبت پرونده</button>
+</form>
+</section>
+<section class="card">
+<h2>🔎 جست‌وجوی پرونده</h2>
+<input id="search" type="text" placeholder="شماره یا عنوان پرونده">
+<div id="cases"><p class="empty">هنوز پرونده‌ای ثبت نشده است.</p></div>
+</section>
+<section class="card">
+<h2>💾 پشتیبان اطلاعات</h2>
+<p class="hint">پشتیبان شامل اطلاعات پرونده‌ها و نام فایل‌هاست؛ خود فایل‌های انتخاب‌شده در JSON ذخیره نمی‌شوند.</p>
+<button id="export" type="button">دانلود پشتیبان JSON</button>
+<label class="upload secondary" for="importInput" style="margin-top:10px">بازیابی پشتیبان JSON</label>
+<input id="importInput" type="file" accept=".json,application/json">
+<p id="backupStatus" class="hint" aria-live="polite"></p>
+</section>
+<footer>BARSAM JUSTICE · نسخه آزمایشی</footer>
+</main>
+<script>
+"use strict";
+const $=id=>document.getElementById(id);
+let cases=[], files=[];
+try{cases=JSON.parse(localStorage.getItem("bj_cases")||"[]");if(!Array.isArray(cases))cases=[];}catch{cases=[];}
+function save(){
+ try{localStorage.setItem("bj_cases",JSON.stringify(cases));return true;}
+ catch{alert("ذخیره‌سازی مرورگر ناموفق بود؛ فضای ذخیره‌سازی را بررسی کن.");return false;}
+}
+function renderFiles(){
+ $("fileCount").textContent=files.length.toLocaleString("fa-IR");
+ const root=$("files");root.replaceChildren();
+ if(!files.length){root.innerHTML='<p class="empty">هنوز فایلی انتخاب نشده است.</p>';return;}
+ files.forEach((file,index)=>{
+  const item=document.createElement("div");item.className="item";
+  const name=document.createElement("strong");name.textContent="📄 "+file.name;
+  const info=document.createElement("p");info.className="hint";info.textContent="حجم: "+(file.size/1024).toFixed(1)+" KB";
+  const actions=document.createElement("div");actions.className="actions";
+  const download=document.createElement("button");download.textContent="دانلود فایل";
+  download.onclick=()=>{const url=URL.createObjectURL(file);const a=document.createElement("a");a.href=url;a.download=file.name;a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);};
+  const remove=document.createElement("button");remove.className="danger";remove.textContent="حذف از فهرست";remove.onclick=()=>{files.splice(index,1);renderFiles();};
+  actions.append(download,remove);item.append(name,info,actions);root.append(item);
+ });
+}
+$("fileInput").addEventListener("change",event=>{
+ const chosen=Array.from(event.target.files||[]);files.push(...chosen);
+ $("uploadStatus").textContent=chosen.length?chosen.length.toLocaleString("fa-IR")+" فایل انتخاب شد.":"";
+ renderFiles();event.target.value="";
+});
+function renderCases(){
+ $("caseCount").textContent=cases.length.toLocaleString("fa-IR");
+ const root=$("cases");root.replaceChildren();
+ const q=$("search").value.trim().toLowerCase();
+ const filtered=cases.filter(c=>(c.number+" "+c.subject+" "+c.status).toLowerCase().includes(q));
+ if(!filtered.length){root.innerHTML='<p class="empty">پرونده‌ای پیدا نشد.</p>';return;}
+ filtered.forEach(c=>{
+  const item=document.createElement("div");item.className="item";
+  const title=document.createElement("strong");title.textContent=c.number+" — "+c.subject;
+  const badge=document.createElement("span");badge.className="badge";badge.textContent=c.status;
+  const date=document.createElement("p");date.className="hint";date.textContent="تاریخ پیگیری: "+(c.date||"تعیین نشده");
+  const actions=document.createElement("div");actions.className="actions";
+  const edit=document.createElement("button");edit.className="secondary";edit.textContent="ویرایش وضعیت";
+  edit.onclick=()=>{const next=prompt("وضعیت جدید را وارد کن:\nدر حال بررسی\nتکمیل‌شده\nنیازمند پیگیری",c.status);if(next&&["در حال بررسی","تکمیل‌شده","نیازمند پیگیری"].includes(next)){c.status=next;if(save())renderCases();}};
+  const del=document.createElement("button");del.className="danger";del.textContent="حذف پرونده";
+  del.onclick=()=>{if(confirm("پرونده آزمایشی حذف شود؟")){cases=cases.filter(x=>x.id!==c.id);if(save())renderCases();}};
+  actions.append(edit,del);item.append(title,badge,date,actions);root.append(item);
+ });
+}
+$("caseForm").addEventListener("submit",event=>{
+ event.preventDefault();const number=$("number").value.trim(),subject=$("subject").value.trim();
+ if(cases.some(c=>c.number.toLowerCase()===number.toLowerCase())){alert("این شماره قبلاً ثبت شده است.");return;}
+ cases.unshift({id:Date.now().toString()+Math.random().toString(16).slice(2),number,subject,status:$("status").value,date:$("date").value});
+ if(save()){event.target.reset();renderCases();alert("پرونده آزمایشی ثبت شد.");}
+});
+$("search").addEventListener("input",renderCases);
+$("export").addEventListener("click",()=>{
+ const data={app:"BARSAM JUSTICE",version:1,exportedAt:new Date().toISOString(),cases,fileNames:files.map(f=>({name:f.name,size:f.size,type:f.type}))};
+ const blob=new Blob([JSON.stringify(data,null,2)],{type:"application/json;charset=utf-8"});
+ const url=URL.createObjectURL(blob);const a=document.createElement("a");a.href=url;a.download="barsam-justice-backup.json";a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);
+});
+$("importInput").addEventListener("change",async event=>{
+ const file=event.target.files[0];if(!file)return;
+ try{
+  const data=JSON.parse(await file.text());
+  if(!data||data.app!=="BARSAM JUSTICE"||!Array.isArray(data.cases)||!data.cases.every(c=>c&&typeof c.id==="string"&&typeof c.number==="string"&&typeof c.subject==="string"&&typeof c.status==="string"&&typeof c.date==="string"))throw new Error("invalid backup");
+  if(confirm("اطلاعات فعلی با اطلاعات پشتیبان جایگزین شود؟")){
+   const old=cases;cases=data.cases;
+   if(save()){renderCases();$("backupStatus").textContent="بازیابی انجام شد.";}else cases=old;
+  }
+ }catch{$("backupStatus").textContent="فایل پشتیبان معتبر نیست.";}
+ event.target.value="";
+});
+renderFiles();renderCases();
+</script>
+</body>
+</html>
